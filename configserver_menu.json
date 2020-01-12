@@ -1,0 +1,59 @@
+[
+    {
+        "title": "Device",
+        "uri": "/device",
+        "menu": true,
+        "element": [
+            {
+                "name": "devicename",
+                "type": "ACInput",
+                "label": "Devicename",
+                "placeholder": "Devicename"
+            },
+            {
+                "name": "set",
+                "type": "ACSubmit",
+                "value": "Save",
+                "uri": "/device_set"
+            }
+        ]
+    },
+    {
+        "title": "Timezone",
+        "uri": "/timezone",
+        "menu": true,
+        "element": [
+            {
+                "name": "timezone",
+                "type": "ACInput",
+                "label": "Timezone",
+                "placeholder": "Timezone"
+            },
+            {
+                "name": "set",
+                "type": "ACSubmit",
+                "value": "Save",
+                "uri": "/timezone_set"
+            }
+        ]
+    },
+    {
+        "title": "Factory Reset",
+        "uri": "/factory_reset",
+        "menu": true,
+        "element": [
+            {
+                "name": "sure",
+                "type": "ACCheckbox",
+                "value": "true",
+                "label": "I'am sure!!!"
+            },
+            {
+                "name": "set",
+                "type": "ACSubmit",
+                "value": "Exec Factory Reset",
+                "uri": "/factory_reset_set"
+            }
+        ]
+    }
+]
