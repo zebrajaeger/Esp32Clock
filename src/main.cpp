@@ -1,17 +1,17 @@
-/* 
+/*
  * This file is part of the ESP32Clock distribution (https://github.com/zebrajaeger/Esp32Clock).
  * Copyright (c) 2019 Lars Brandt.
- * 
- * This program is free software: you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by  
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 3.
  *
- * This program is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License 
+ * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -51,6 +51,7 @@ String currentIP;
 String id;
 EspClass esp;
 
+bool autoConnectionmode = false;
 bool connected = false;
 enum { STATE_BOOT = 0, STATE_BOOT_DONE, STATE_HAS_NTP_TIME, STATE_HAS_TIMEZONE, STATE_NO_TIMEZONE } state;
 /* #endregion */
@@ -60,6 +61,7 @@ extern const char configServerMenu[] asm("_binary_configserver_menu_json_start")
 /* #endregion */
 
 /* #region  Constants */
+#define AP_NAME "Esp32Clock"
 #define NVS_DEVICENAME "devicename"
 #define NVS_TIMEZONE "timezone"
 
@@ -90,6 +92,7 @@ const char* getWifiEventName(WiFiEvent_t e);
 const char* getWifiFailReason(uint8_t r);
 void showBootScreen();
 void showConnectScreen();
+void showAPStart();
 void showConnectionFailed(uint8_t reason);
 void showTime();
 void factoryReset();
@@ -157,17 +160,18 @@ void setupWiFi()
   WiFi.begin();
 
   WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-    LOG.i("WiFi event: %u -> %s\n", event, getWifiEventName(event));
+    LOG.i("WiFi event: %u -> %s", event, getWifiEventName(event));
     switch (event) {
-      case SYSTEM_EVENT_STA_GOT_IP:
+      case SYSTEM_EVENT_STA_GOT_IP: {
         LOG.i("WiFi connected");
         currentIP = WiFi.localIP().toString();
         LOG.i("IP is: %s", currentIP.c_str());
         connected = true;
-        break;
-      case SYSTEM_EVENT_STA_DISCONNECTED:
+      } break;
+
+      case SYSTEM_EVENT_STA_DISCONNECTED: {
         showConnectionFailed(info.disconnected.reason);
-        LOG.i("WiFi disconnected, Reason: %u -> %s\n", info.disconnected.reason, getWifiFailReason(info.disconnected.reason));
+        LOG.i("WiFi disconnected, Reason: %u -> %s", info.disconnected.reason, getWifiFailReason(info.disconnected.reason));
         currentIP = "<disconnected>";
         connected = false;
         if (info.disconnected.reason == 202) {
@@ -176,7 +180,20 @@ void setupWiFi()
           esp_deep_sleep_start();
           delay(100);
         }
-        break;
+      } break;
+
+      case SYSTEM_EVENT_AP_START: {
+        if(autoConnectionmode){
+          showAPStart();
+        }
+      } break;
+
+      case SYSTEM_EVENT_AP_STOP: {
+        if(autoConnectionmode){
+          showConnectScreen();
+        }
+      } break;
+
       default:
         break;
     }
@@ -248,17 +265,22 @@ void setupAutoconnectAndWebserver()
 
   //        Load AC config
   AutoConnectConfig autoConnectConfig;
-  autoConnectConfig.title = "ESP32Clock";
+  autoConnectConfig.title = AP_NAME;
+  autoConnectConfig.apid = AP_NAME;
   autoConnectConfig.hostName = id;
   // autoConnectConfig.autoReconnect = true;
   autoConnectConfig.autoReconnect = false;
+  autoConnect.config(autoConnectConfig);
+
   if (autoConnect.load(configServerMenu)) {
     LOG.i("AutoConnect loaded.");
+    autoConnectionmode = true;
     if (autoConnect.begin()) {
       LOG.i("AutoConnect started.");
     } else {
       LOG.e(" Autoconnect start failed.");
     }
+    autoConnectionmode = false;
   } else {
     LOG.e("Autoconnect load failed.");
   }
@@ -443,6 +465,7 @@ void showConnectScreen()
   u8g2.setFont(u8g2_font_ncenB10_tr);
   u8g2.drawStr(0, 20, "Connect");
   u8g2.drawStr(0, 40, "to WiFi...");
+  u8g2.drawStr(0, 60, WiFi.SSID().c_str());
   u8g2.sendBuffer();
 }
 
@@ -455,6 +478,18 @@ void showConnectionFailed(uint8_t reason)
   u8g2.drawStr(0, 20, "WiFi failed");
   u8g2.drawStr(0, 40, "reason:");
   u8g2.drawStr(0, 60, getWifiFailReason(reason));
+  u8g2.sendBuffer();
+}
+
+// --------------------------------------------------------------------------------
+void showAPStart()
+// --------------------------------------------------------------------------------
+{
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB08_tr);
+  u8g2.drawStr(0, 20, "Access point mode");
+  u8g2.drawStr(0, 40, (String("SSID: ") + AP_NAME).c_str());
+  u8g2.drawStr(0, 60, "PSK:  12345678");
   u8g2.sendBuffer();
 }
 
